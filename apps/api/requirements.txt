@@ -1,0 +1,53 @@
+# VietJob Korea AI — backend dependencies
+# Đã kiểm chứng cài đặt thành công trên Python 3.14.6 / Windows.
+# Ghim version chính xác để môi trường dev, CI và production giống hệt nhau.
+
+# ---- Web framework ----
+fastapi==0.141.1
+uvicorn[standard]==0.52.1
+python-multipart==0.0.32          # upload file CV
+email-validator==2.3.0            # kiểu EmailStr của Pydantic
+
+# ---- Cấu hình và validate ----
+pydantic==2.13.4
+pydantic-settings==2.15.0
+
+# ---- Database (MySQL 8) ----
+SQLAlchemy==2.0.51
+alembic==1.19.0
+asyncmy==0.2.13                   # driver async, dùng lúc chạy app
+PyMySQL==1.2.0                    # driver đồng bộ, Alembic cần
+cryptography==50.0.0              # bắt buộc cho caching_sha2_password của MySQL 8
+
+# ---- HTTP client cho job source ----
+httpx==0.28.1
+beautifulsoup4==4.15.0
+lxml==6.1.1
+
+# ---- Xử lý CV ----
+pypdf==6.15.0
+python-docx==1.2.0
+
+# ---- AI provider (chỉ dùng provider nào được cấu hình) ----
+anthropic==0.121.0
+openai==2.53.0
+google-genai==2.17.0
+
+# ---- Embedding chạy cục bộ ----
+sentence-transformers==5.7.0
+numpy==2.5.1
+
+# ---- Background task (chỉ dùng khi có REDIS_URL) ----
+celery==5.6.3
+redis==8.1.0
+
+# ---- Bảo mật ----
+bcrypt==5.0.0                     # dành cho Phase 15 (auth), chưa dùng ở v1
+PyJWT==2.13.0                     # dành cho Phase 15 (auth), chưa dùng ở v1
+slowapi==0.1.10                   # rate limiting
+
+# ---- Tiện ích ----
+structlog==26.1.0
+tenacity==9.1.4                   # retry với exponential backoff
+python-dateutil==2.9.0.post0
+orjson==3.11.9
