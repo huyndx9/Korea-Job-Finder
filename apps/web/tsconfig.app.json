@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+    "skipLibCheck": true,
+
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Strictness — bắt lỗi lúc compile thay vì lúc chạy */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "noImplicitOverride": true,
+    /* Bắt buộc: truy cập phần tử mảng/record trả về `T | undefined`.
+       Ngăn lỗi runtime kiểu `jobs[0].title` khi mảng rỗng. */
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] },
+
+    "types": ["vitest/globals", "@testing-library/jest-dom"]
+  },
+  "include": ["src"]
+}
