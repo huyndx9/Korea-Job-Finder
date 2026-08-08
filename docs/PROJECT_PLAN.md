@@ -82,7 +82,7 @@ Mỗi phase chỉ được đóng khi qua **Quality Gate** của nó.
 | Phase | Nội dung | Trạng thái |
 |---|---|---|
 | 0 | Audit + Docs | ✅ Done |
-| 1 | Foundation: monorepo, backend skeleton, DB engine, frontend skeleton, tooling, test harness | 🔄 In progress |
+| 1 | Foundation: monorepo, backend skeleton, DB engine, frontend skeleton, tooling, test harness | ✅ Done |
 | 2 | Local Profile (thay cho Auth): profile, skills, preferences | ⏳ |
 | 3 | Job data model: companies, sources, jobs, saved_jobs, migrations, indexes | ⏳ |
 | 4 | Job Source System: `JobSourceAdapter`, registry, rate limit, retry, circuit breaker, scheduler | ⏳ |
@@ -102,13 +102,22 @@ Mỗi phase chỉ được đóng khi qua **Quality Gate** của nó.
 
 ## 4. Quality Gate từng Phase
 
-### Phase 1 — Foundation
-- [ ] Backend khởi động, `GET /health` trả 200 với trạng thái DB thật
-- [ ] Frontend build thành công, dev server chạy
-- [ ] DB engine kết nối được (SQLite local), Alembic migration chạy
-- [ ] `ruff check` PASS, `mypy` PASS, `pytest` PASS
-- [ ] ESLint PASS, `tsc --noEmit` PASS, `vitest` PASS
-- [ ] `docker-compose.yml` viết đủ service (không verify được vì thiếu Docker — ghi rõ ở Known Limitations)
+### Phase 1 — Foundation ✅
+
+- [x] Backend khởi động thật bằng uvicorn, `GET /health` trả 200
+- [x] `GET /health/ready` ping database thật và trả 503 khi không kết nối được
+- [x] Frontend build production thành công (203 kB JS / 66 kB gzip)
+- [x] `ruff check` PASS · `ruff format --check` PASS
+- [x] `mypy --strict` PASS (31 file, 0 lỗi)
+- [x] `pytest` PASS — 54 test
+- [x] ESLint (`strictTypeChecked`) PASS
+- [x] `tsc --noEmit` PASS
+- [x] `vitest` PASS — 25 test
+- [x] `npm audit` — 0 lỗ hổng
+- [x] `docker-compose.yml` + Dockerfile viết đủ service — **đánh dấu UNVERIFIED** vì máy không có Docker
+
+**Chưa đạt (chờ thao tác của người dùng):**
+- [ ] Alembic migration chạy thật — cần mật khẩu MySQL trong `.env`. Migration đầu tiên thuộc Phase 3 (chưa có model nào ngoài `Base`).
 
 ### Phase 2 — Local Profile
 - [ ] Local owner user tự seed khi khởi động
