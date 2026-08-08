@@ -80,6 +80,7 @@ VietJob Korea AI — các lệnh có sẵn
 
   Database
     db-setup       In hướng dẫn tạo database MySQL
+    db-check       Kiểm tra kết nối MySQL và charset
     migrate        Áp dụng toàn bộ migration
     migration      Sinh migration mới:  .\make.ps1 migration "mo ta thay doi"
     db-downgrade   Lùi lại một migration
@@ -134,17 +135,25 @@ VietJob Korea AI — các lệnh có sẵn
         $mysql = Get-ChildItem 'C:\Program Files\MySQL' -Recurse -Filter 'mysql.exe' `
             -ErrorAction SilentlyContinue | Select-Object -First 1
         $exe = if ($mysql) { $mysql.FullName } else { 'mysql' }
+        $local = Join-Path $RepoRoot 'scripts\mysql_setup.local.sql'
+        $script = if (Test-Path $local) { 'scripts\mysql_setup.local.sql' } else { 'scripts\mysql_setup.sql' }
+
+        if (-not (Test-Path $local)) {
+            Write-Warn 'Chưa có scripts\mysql_setup.local.sql.'
+            Write-Host '  Mở scripts\mysql_setup.sql, thay CHANGE_ME_STRONG_PASSWORD bằng mật khẩu'
+            Write-Host '  bạn tự chọn, lưu thành mysql_setup.local.sql (file này đã được gitignore),'
+            Write-Host '  rồi điền cùng mật khẩu đó vào .env.'
+            Write-Host ''
+        }
+
         Write-Host @"
+Chạy lệnh sau, MySQL sẽ hỏi mật khẩu root của bạn:
 
-1. Mở scripts\mysql_setup.sql, thay CHANGE_ME_STRONG_PASSWORD bằng mật khẩu bạn tự chọn.
+   & "$exe" -u root -p < "$script"
 
-2. Chạy lệnh sau (sẽ hỏi mật khẩu root MySQL):
+Sau đó kiểm tra:
 
-   & "$exe" -u root -p < scripts\mysql_setup.sql
-
-3. Điền đúng mật khẩu vừa chọn vào DATABASE_URL và TEST_DATABASE_URL trong .env
-
-4. Chạy:  .\make.ps1 migrate
+   .\make.ps1 db-check
 
 "@
     }
@@ -167,6 +176,16 @@ VietJob Korea AI — các lệnh có sẵn
         Assert-Venv
         Push-Location $ApiDir
         try { & $VenvPython -m app.workers.run } finally { Pop-Location }
+    }
+
+    'db-check' {
+        Assert-Venv
+        Push-Location $ApiDir
+        try {
+            & $VenvPython -m app.cli.dbcheck
+            if ($LASTEXITCODE -ne 0) { throw 'Kiểm tra database thất bại' }
+        }
+        finally { Pop-Location }
     }
 
     'migrate' {

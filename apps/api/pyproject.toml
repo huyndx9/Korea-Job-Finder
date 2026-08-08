@@ -42,6 +42,9 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S", "T20"]
 "alembic/env.py" = ["E402"]
+# CLI giao tiếp với người dùng qua stdout — print() ở đây là đúng công cụ,
+# không phải print-debug sót lại. Ngoại lệ giới hạn đúng thư mục app/cli.
+"app/cli/*" = ["T20"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

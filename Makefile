@@ -7,7 +7,7 @@ WEB_DIR := apps/web
 VENV := $(API_DIR)/.venv
 PY := $(VENV)/bin/python
 
-.PHONY: help install env api web worker db-setup migrate migration db-downgrade \
+.PHONY: help install env api web worker db-setup db-check migrate migration db-downgrade \
         test test-api test-web lint format typecheck check build clean
 
 help:
@@ -53,10 +53,13 @@ worker:
 	cd $(API_DIR) && ../../$(PY) -m app.workers.run
 
 db-setup:
-	@echo "1. Sửa mật khẩu trong scripts/mysql_setup.sql"
-	@echo "2. mysql -u root -p < scripts/mysql_setup.sql"
-	@echo "3. Điền mật khẩu vào .env"
-	@echo "4. make migrate"
+	@echo "1. Sửa mật khẩu trong scripts/mysql_setup.sql, lưu thành mysql_setup.local.sql"
+	@echo "2. mysql -u root -p < scripts/mysql_setup.local.sql"
+	@echo "3. Điền cùng mật khẩu đó vào .env"
+	@echo "4. make db-check && make migrate"
+
+db-check:
+	cd $(API_DIR) && ../../$(PY) -m app.cli.dbcheck
 
 migrate:
 	cd $(API_DIR) && ../../$(PY) -m alembic upgrade head

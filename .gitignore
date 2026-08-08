@@ -6,6 +6,10 @@
 *.key
 secrets/
 
+# Script SQL có credential thật. Bản committed là scripts/mysql_setup.sql
+# (chỉ chứa placeholder); bản *.local.sql chứa mật khẩu thật.
+*.local.sql
+
 # ---- Python ----
 __pycache__/
 *.py[cod]
