@@ -105,24 +105,33 @@ Lệnh này tạo virtualenv Python, cài dependency backend + frontend, và t�
 
 ### 2. Tạo database
 
-Mở `scripts/mysql_setup.sql`, thay `CHANGE_ME_STRONG_PASSWORD` bằng mật khẩu bạn tự chọn, rồi chạy:
+Copy `scripts/mysql_setup.sql` thành `scripts/mysql_setup.local.sql` (file `.local.sql` đã được gitignore), thay `CHANGE_ME_STRONG_PASSWORD` bằng mật khẩu bạn tự chọn, rồi chạy — MySQL sẽ hỏi mật khẩu **root**:
 
 ```powershell
-& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p < scripts\mysql_setup.sql
+& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p -e "source scripts/mysql_setup.local.sql"
 ```
+
+> Dùng `-e "source ..."` chứ **không** dùng `< file`: PowerShell không hỗ trợ toán tử `<`.
+> Trên Linux/macOS thì `mysql -u root -p < scripts/mysql_setup.local.sql` chạy bình thường.
 
 Script tạo hai database (`vietjob`, `vietjob_test`) với charset `utf8mb4` và một user riêng cho ứng dụng.
 
 ### 3. Cấu hình kết nối
 
-Mở `.env`, điền mật khẩu vừa chọn:
+Mở `.env`, điền cùng mật khẩu đó:
 
 ```env
 DATABASE_URL=mysql+asyncmy://vietjob:MAT_KHAU_CUA_BAN@127.0.0.1:3306/vietjob?charset=utf8mb4
 TEST_DATABASE_URL=mysql+asyncmy://vietjob:MAT_KHAU_CUA_BAN@127.0.0.1:3306/vietjob_test?charset=utf8mb4
 ```
 
-> Nếu mật khẩu chứa `@ : / ? #` thì phải URL-encode (ví dụ `@` → `%40`).
+> Nếu mật khẩu chứa `@ : / ? #` thì phải URL-encode (ví dụ `@` → `%40`). Cách đơn giản nhất là chỉ dùng chữ và số.
+
+Kiểm tra kết nối:
+
+```powershell
+.\make.ps1 db-check
+```
 
 ### 4. Chạy migration
 

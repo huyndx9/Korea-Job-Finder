@@ -146,10 +146,14 @@ VietJob Korea AI — các lệnh có sẵn
             Write-Host ''
         }
 
+        # Dùng `-e "source ..."` chứ không dùng `< file`: PowerShell không hỗ trợ
+        # toán tử `<` (báo "reserved for future use"), nên lệnh redirect quen
+        # thuộc của MySQL sẽ lỗi cú pháp trước khi chạy tới.
+        $forward = $script -replace '\\', '/'
         Write-Host @"
 Chạy lệnh sau, MySQL sẽ hỏi mật khẩu root của bạn:
 
-   & "$exe" -u root -p < "$script"
+   & "$exe" -u root -p -e "source $forward"
 
 Sau đó kiểm tra:
 
