@@ -1,0 +1,130 @@
+# VietJob Korea AI — môi trường local bằng container.
+#
+# ⚠️  CHƯA KIỂM CHỨNG. Docker không có trên máy phát triển nên file này chưa
+#     từng được chạy thật. Đường chạy đã kiểm chứng là `.\make.ps1` (chạy trực
+#     tiếp trên máy). Xem README mục "Docker".
+#
+# Dùng:  docker compose up --build
+
+name: vietjob-korea
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      # Chỉ dùng cho container local. Production phải lấy từ secret manager.
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-vietjob_root_dev}
+      MYSQL_DATABASE: vietjob
+      MYSQL_USER: vietjob
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-vietjob_dev}
+    command:
+      # utf8mb4 là bắt buộc cho tiếng Việt có dấu, Hangul và emoji.
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      # ngram parser phục vụ FULLTEXT tiếng Hàn. ngram_token_size chỉ đọc được
+      # lúc chạy nên phải đặt ở đây, không đặt được bằng lệnh SQL.
+      - --ngram-token-size=2
+    ports:
+      - '3307:3306' # 3307 để không đụng MySQL đã cài sẵn trên máy
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/mysql_docker_init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-u', 'root', '-p$$MYSQL_ROOT_PASSWORD']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      APP_ENV: development
+      SINGLE_USER_MODE: 'true'
+      # Trong container bắt buộc bind 0.0.0.0, nếu không cổng publish sẽ không
+      # nhận được kết nối. An toàn ở đây do port mapping bên dưới chỉ mở trên
+      # 127.0.0.1 của máy chủ, chứ không phải do bind address.
+      API_HOST: 0.0.0.0
+      SINGLE_USER_ALLOW_EXTERNAL_BIND: 'true'
+      DATABASE_URL: mysql+asyncmy://vietjob:${MYSQL_PASSWORD:-vietjob_dev}@mysql:3306/vietjob?charset=utf8mb4
+      TEST_DATABASE_URL: mysql+asyncmy://vietjob:${MYSQL_PASSWORD:-vietjob_dev}@mysql:3306/vietjob_test?charset=utf8mb4
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: http://localhost:5173
+      LOG_FORMAT: json
+    env_file:
+      - path: .env
+        required: false # API key là tuỳ chọn
+    ports:
+      # Chỉ publish trên loopback của máy chủ. Dạng '8000:8000' sẽ mở API ra
+      # toàn mạng LAN — mà API này không có authentication.
+      - '127.0.0.1:8000:8000'
+    volumes:
+      - resume_data:/app/data/resumes
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ['python', '-m', 'app.workers.run']
+    environment:
+      APP_ENV: development
+      SINGLE_USER_MODE: 'true'
+      DATABASE_URL: mysql+asyncmy://vietjob:${MYSQL_PASSWORD:-vietjob_dev}@mysql:3306/vietjob?charset=utf8mb4
+      REDIS_URL: redis://redis:6379/0
+      LOG_FORMAT: json
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - resume_data:/app/data/resumes
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:5173:80'
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  mysql_data:
+  redis_data:
+  resume_data:
