@@ -1,7 +1,0 @@
-node_modules
-dist
-coverage
-.venv
-data
-*.md
-package-lock.json

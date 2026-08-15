@@ -1,9 +1,0 @@
-# Dependency chỉ dùng khi phát triển và chạy CI.
--r requirements.txt
-
-pytest==9.1.1
-pytest-asyncio==1.4.0
-pytest-cov==7.1.0
-fakeredis==2.37.0                 # test hàng đợi mà không cần Redis thật
-ruff==0.16.2
-mypy==2.3.0
