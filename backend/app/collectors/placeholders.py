@@ -91,6 +91,17 @@ class BuddiesKoreaCollector(_PlaceholderCollector):
     )
 
 
+class RememberCollector(_PlaceholderCollector):
+    name = "remember"
+    label = "리멤버"
+    site_url = "https://career.rememberapp.co.kr"
+    unavailable_reason = (
+        "Cloudflare bot protection returns 403 to our self-identifying User-Agent. "
+        "The same URL only answers 200 if the crawler disguises itself as a plain browser, "
+        "which would be evading a deliberate block - so this source stays off."
+    )
+
+
 class RocketPunchCollector(_PlaceholderCollector):
     name = "rocketpunch"
     label = "로켓펀치"

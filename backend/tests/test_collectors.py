@@ -20,6 +20,7 @@ from app.collectors.placeholders import (
     BuddiesKoreaCollector,
     KoworkCollector,
     KWorkCollector,
+    RememberCollector,
 )
 from app.collectors.saramin import SaraminCollector
 from app.collectors.wanted import WantedCollector
@@ -465,7 +466,7 @@ def test_kowork_is_a_documented_placeholder():
     assert collector.collect("베트남어") == []
 
 
-@pytest.mark.parametrize("cls", [KWorkCollector, BuddiesKoreaCollector])
+@pytest.mark.parametrize("cls", [KWorkCollector, BuddiesKoreaCollector, RememberCollector])
 def test_client_rendered_sites_are_placeholders_with_a_reason(cls):
     """Sites whose listings never appear in the served HTML."""
     collector = cls()
@@ -535,3 +536,16 @@ def test_registry_builds_every_collector():
 def test_get_collector_by_name():
     assert isinstance(get_collector("saramin"), SaraminCollector)
     assert get_collector("nope") is None
+
+
+def test_remember_is_blocked_and_we_do_not_evade_it():
+    """Remember's Cloudflare rejects our honest User-Agent.
+
+    Passing a plain-browser UA gets through, but that means disguising the
+    crawler to defeat a deliberate block - so the source stays unavailable and
+    the reason says exactly why.
+    """
+    collector = RememberCollector()
+    assert collector.is_available() is False
+    assert "Cloudflare" in collector.unavailable_reason
+    assert collector.collect("베트남어") == []

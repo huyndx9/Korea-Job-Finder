@@ -30,6 +30,7 @@ from app.collectors.placeholders import (
     JobPlanetCollector,
     KoworkCollector,
     KWorkCollector,
+    RememberCollector,
     RocketPunchCollector,
 )
 from app.collectors.saramin import SaraminCollector
@@ -52,6 +53,7 @@ COLLECTOR_CLASSES: list[type[JobCollector]] = [
     KoworkCollector,
     KWorkCollector,
     BuddiesKoreaCollector,
+    RememberCollector,
     RocketPunchCollector,
 ]
 
