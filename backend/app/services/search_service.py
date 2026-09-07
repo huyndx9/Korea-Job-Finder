@@ -26,6 +26,7 @@ from app.config import settings
 from app.models import Job
 from app.services import source_status
 from app.services.dedup_service import deduplicate, make_fingerprint
+from app.services.vietnam_scan import score_text
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,9 @@ def _mock_stand_in(collector: JobCollector, keywords: list[str], limit: int) -> 
     return _collect_sync(mock, keywords, limit)
 
 
-async def _run_collector(collector: JobCollector, keywords: list[str], limit: int) -> CollectorResult:
+async def _run_collector(
+    collector: JobCollector, keywords: list[str], limit: int, timeout: float
+) -> CollectorResult:
     started = time.perf_counter()
 
     def finish(
@@ -104,12 +107,12 @@ async def _run_collector(collector: JobCollector, keywords: list[str], limit: in
     try:
         jobs = await asyncio.wait_for(
             asyncio.to_thread(_collect_sync, collector, keywords, limit),
-            timeout=settings.collector_timeout,
+            timeout=timeout,
         )
         return finish(SourceStatus.CONNECTED, jobs, None)
 
     except asyncio.TimeoutError:
-        message = f"timed out after {settings.collector_timeout:.0f}s"
+        message = f"timed out after {timeout:.0f}s"
         logger.error(
             "collector timeout | source=%s | error=%s | at=%s",
             collector.name, message, datetime.now(timezone.utc).isoformat(),
@@ -170,6 +173,8 @@ def _merge_and_commit(db: Session, jobs: list[NormalizedJob], keywords: list[str
     saved: list[Job] = []
 
     for job in jobs:
+        # judged from the posting's own words, not from the search term
+        relevance = score_text(job.title, job.company, job.description, job.keywords)
         row = existing.get(job.fingerprint)
         if row is None:
             row = Job(
@@ -195,6 +200,8 @@ def _merge_and_commit(db: Session, jobs: list[NormalizedJob], keywords: list[str
                 matched_keywords=keyword_text,
                 is_active=int(job.is_active),
                 is_mock=int(job.is_mock),
+                vn_score=relevance.score,
+                vn_tags=relevance.tag_text,
             )
             db.add(row)
             existing[job.fingerprint] = row
@@ -209,6 +216,8 @@ def _merge_and_commit(db: Session, jobs: list[NormalizedJob], keywords: list[str
             row.education = job.education or row.education
             row.keywords = job.keywords or row.keywords
             row.is_active = int(job.is_active)
+            row.vn_score = relevance.score
+            row.vn_tags = relevance.tag_text
             merged = {k for k in (row.matched_keywords or "").split(",") if k} | set(keywords)
             row.matched_keywords = ",".join(sorted(merged))
         saved.append(row)
@@ -227,6 +236,7 @@ async def run_search(
     keywords: list[str],
     sources: list[str] | None = None,
     limit_per_source: int | None = None,
+    timeout: float | None = None,
 ) -> SearchOutcome:
     started = time.perf_counter()
     keywords = [k.strip() for k in keywords if k and k.strip()]
@@ -240,8 +250,13 @@ async def run_search(
     if not selected or not keywords:
         return SearchOutcome([], [], int((time.perf_counter() - started) * 1000), 0)
 
+    # A multi-keyword sweep hits each site once per keyword, so the per-collector
+    # budget has to scale with the keyword count - otherwise a wide scan trips the
+    # single-search timeout on the slower sites.
+    budget = timeout or max(settings.collector_timeout, len(keywords) * 3.0)
+
     results = await asyncio.gather(
-        *(_run_collector(collector, keywords, limit) for collector in selected)
+        *(_run_collector(collector, keywords, limit, budget) for collector in selected)
     )
 
     collected: list[NormalizedJob] = []

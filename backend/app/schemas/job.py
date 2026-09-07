@@ -34,6 +34,8 @@ class JobOut(BaseModel):
     collected_at: datetime
 
     keywords: str | None = None
+    vn_score: int = 0
+    vn_tags: str | None = None
     is_active: bool = True
     is_mock: bool = False
 
@@ -65,6 +67,26 @@ class CollectorStatusOut(BaseModel):
     elapsed_ms: int
     is_mock: bool
     error: str | None = None
+
+
+class ScanRequest(BaseModel):
+    """베트남/외국인 대상 공고 전체 스캔 요청."""
+
+    sources: list[str] | None = None
+    page: int = 1
+    limit: int = 20
+    min_score: int = 1
+
+
+class ScanResponse(BaseModel):
+    keywords_used: list[str]
+    jobs: list[JobOut]
+    pagination: PageMeta
+    sources: list["CollectorStatusOut"]
+    elapsed_ms: int
+    duplicates_removed: int
+    total_collected: int
+    matched: int
 
 
 class SearchRequest(BaseModel):

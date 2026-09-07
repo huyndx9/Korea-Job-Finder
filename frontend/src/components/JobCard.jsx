@@ -58,6 +58,14 @@ export default function JobCard({ job, sourceLabels }) {
             <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
               {sourceName}
             </span>
+            {job.vn_score >= 40 && (
+              <span
+                title={`베트남·외국인 관련도 ${job.vn_score}점${job.vn_tags ? ` · ${job.vn_tags}` : ''}`}
+                className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800"
+              >
+                🇻🇳 {job.vn_score}
+              </span>
+            )}
             {job.is_mock && (
               <span
                 title="개발용 샘플 데이터입니다 (실제 공고가 아님)"

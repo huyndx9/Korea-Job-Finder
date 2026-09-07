@@ -42,6 +42,13 @@ export function searchJobs({ keywords, sources, page = 1, limit = 20, sort = 'la
   })
 }
 
+export function scanVietnam({ sources, page = 1, limit = 20, minScore = 1 }) {
+  return request('/api/scan', {
+    method: 'POST',
+    body: JSON.stringify({ sources, page, limit, min_score: minScore }),
+  })
+}
+
 // ---- user-added job sites --------------------------------------------------
 
 export function testCustomSource(config) {

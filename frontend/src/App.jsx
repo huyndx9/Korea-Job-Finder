@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, Clock, Globe, Layers, SearchX } from 'lucide-react'
+import { AlertTriangle, Clock, Globe, Layers, Radar, SearchX } from 'lucide-react'
 
-import { deleteCustomSource, getSources, listJobs, searchJobs } from './api'
+import { deleteCustomSource, getSources, listJobs, scanVietnam, searchJobs } from './api'
 import Header from './components/Header'
 import SearchBar from './components/SearchBar'
 import SourceFilter from './components/SourceFilter'
@@ -44,6 +44,8 @@ export default function App() {
 
   const [addOpen, setAddOpen] = useState(false)
   const [sourcesError, setSourcesError] = useState(null)
+  const [scanning, setScanning] = useState(false)
+  const [scanMeta, setScanMeta] = useState(null)
   const [loadingSources, setLoadingSources] = useState(false)
   const [searching, setSearching] = useState(false)
   const [loadingList, setLoadingList] = useState(false)
@@ -141,6 +143,7 @@ export default function App() {
       })
       setFilters(EMPTY_FILTERS)
       setPage(1)
+      setScanMeta(null)
       setSearchedKeywords(keywords)
       // refresh the source panel so it shows live health (connected / invalid_key / ...)
       loadSources(false)
@@ -148,6 +151,49 @@ export default function App() {
       setError(err.message)
     } finally {
       setSearching(false)
+    }
+  }
+
+  // Sweep every working source with the Korean phrases employers actually use
+  // when hiring Vietnamese workers (language, foreigner wording, visa codes),
+  // then keep only postings whose own text shows they take foreign applicants.
+  async function handleScan() {
+    if (!sources.length) {
+      setError('백엔드가 실행 중이 아닙니다. run-backend.bat 을 실행한 뒤 다시 시도해 주세요.')
+      return
+    }
+    if (!selectedSources.length) {
+      setError('채용 사이트를 최소 한 개 선택해 주세요.')
+      return
+    }
+
+    setScanning(true)
+    setError(null)
+    try {
+      const result = await scanVietnam({ sources: selectedSources, limit: PAGE_SIZE })
+      setCollectorStatuses(result.sources)
+      setSearchMeta({
+        elapsedMs: result.elapsed_ms,
+        duplicatesRemoved: result.duplicates_removed,
+        siteCount: result.sources.length,
+      })
+      setScanMeta({
+        totalCollected: result.total_collected,
+        matched: result.matched,
+        keywordCount: result.keywords_used.length,
+      })
+      setJobs(result.jobs)
+      setPagination(result.pagination)
+      // the scan is its own view: browsing back through /api/jobs would lose
+      // the relevance ranking, so we do not set searchedKeywords here
+      setSearchedKeywords([])
+      setFilters(EMPTY_FILTERS)
+      setPage(1)
+      loadSources(false)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setScanning(false)
     }
   }
 
@@ -172,7 +218,7 @@ export default function App() {
     }
   }
 
-  const hasSearched = searchedKeywords.length > 0
+  const hasSearched = searchedKeywords.length > 0 || scanMeta !== null
   const selectedSourceObjects = sources.filter((source) => selectedSources.includes(source.name))
   const sourceLabels = Object.fromEntries(sources.map((source) => [source.name, source.label]))
 
@@ -182,6 +228,15 @@ export default function App() {
 
       <main className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6">
         <SearchBar value={query} onChange={setQuery} onSearch={handleSearch} loading={searching} />
+
+        <button
+          onClick={handleScan}
+          disabled={scanning || searching}
+          className="flex w-full items-center justify-center gap-2.5 rounded-xl border-2 border-emerald-600 bg-emerald-50 px-5 py-3 font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Radar className={`h-5 w-5 ${scanning ? 'animate-spin' : ''}`} />
+          {scanning ? '전체 스캔 중... (30초 정도 걸립니다)' : '🇻🇳 베트남·외국인 채용 전체 스캔'}
+        </button>
 
         <SourceFilter
           sources={sources}
@@ -223,7 +278,7 @@ export default function App() {
           />
 
           <section className="space-y-4">
-            {searching ? (
+            {searching || scanning ? (
               <LoadingState sources={selectedSourceObjects} />
             ) : (
               <>
@@ -266,6 +321,12 @@ export default function App() {
                           <Layers className="h-4 w-4" />
                           중복 제거: {searchMeta.duplicatesRemoved}건
                         </span>
+                        {scanMeta && (
+                          <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700">
+                            <Radar className="h-4 w-4" />
+                            키워드 {scanMeta.keywordCount}개 스캔 · {scanMeta.totalCollected}건 중 {scanMeta.matched}건 관련
+                          </span>
+                        )}
                       </div>
                     )}
 

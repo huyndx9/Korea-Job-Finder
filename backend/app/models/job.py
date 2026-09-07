@@ -59,6 +59,11 @@ class Job(Base):
     # 0 = the source says the posting is closed
     is_active: Mapped[bool] = mapped_column(Integer, default=1)
 
+    # how strongly this posting targets Vietnamese / foreign workers (0-100),
+    # computed from the posting's own text - see services/vietnam_scan.py
+    vn_score: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    vn_tags: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
     # True when the row came from MockJobCollector (development data, not a real posting)
     is_mock: Mapped[bool] = mapped_column(Integer, default=0)
 

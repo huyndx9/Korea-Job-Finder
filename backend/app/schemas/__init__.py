@@ -6,6 +6,8 @@ from app.schemas.custom_source import (
     CustomSourceUpdate,
 )
 from app.schemas.job import (
+    ScanRequest,
+    ScanResponse,
     CollectorStatusOut,
     HealthResponse,
     JobListResponse,
@@ -18,6 +20,8 @@ from app.schemas.job import (
 
 __all__ = [
     "CollectorStatusOut",
+    "ScanRequest",
+    "ScanResponse",
     "CustomSourceCreate",
     "CustomSourceOut",
     "CustomSourceTestRequest",

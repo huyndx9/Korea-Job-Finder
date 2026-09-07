@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Job
 
-SORT_OPTIONS = ("latest", "oldest", "salary_desc", "salary_asc")
+SORT_OPTIONS = ("latest", "oldest", "salary_desc", "salary_asc", "vn_score")
 
 
 @dataclass
@@ -20,6 +20,7 @@ class JobFilters:
     employment_types: list[str] | None = None
     experiences: list[str] | None = None
     sort: str = "latest"
+    min_vn_score: int | None = None
     page: int = 1
     limit: int = 20
 
@@ -52,6 +53,8 @@ def _base_query(filters: JobFilters):
         stmt = stmt.where(Job.employment_type.in_(filters.employment_types))
     if filters.experiences:
         stmt = stmt.where(Job.experience.in_(filters.experiences))
+    if filters.min_vn_score:
+        stmt = stmt.where(Job.vn_score >= filters.min_vn_score)
     return stmt
 
 
@@ -67,6 +70,9 @@ def _apply_sort(stmt, sort: str):
         return stmt.order_by(real_first, Job.salary_value.is_(None), Job.salary_value.desc(), Job.id.desc())
     if sort == "salary_asc":
         return stmt.order_by(real_first, Job.salary_value.is_(None), Job.salary_value.asc(), Job.id.asc())
+    if sort == "vn_score":
+        # most clearly Vietnamese/foreigner-targeted first, newest as tiebreak
+        return stmt.order_by(real_first, Job.vn_score.desc(), Job.posted_at.is_(None), Job.posted_at.desc())
     return stmt.order_by(real_first, Job.posted_at.is_(None), Job.posted_at.desc(), Job.id.desc())
 
 
@@ -99,6 +105,8 @@ def sort_jobs(jobs: list[Job], sort: str) -> list[Job]:
         return sorted(jobs, key=lambda j: (real_first(j), j.salary_value is None, -(j.salary_value or 0)))
     if sort == "salary_asc":
         return sorted(jobs, key=lambda j: (real_first(j), j.salary_value is None, j.salary_value or 0))
+    if sort == "vn_score":
+        return sorted(jobs, key=lambda j: (real_first(j), -(j.vn_score or 0)))
     # undated postings always sink to the bottom, whichever direction we sort
     if sort == "oldest":
         return sorted(

@@ -24,6 +24,8 @@ from app.models import Job
 from app.services import source_status
 from app.schemas import (
     CollectorStatusOut,
+    ScanRequest,
+    ScanResponse,
     HealthResponse,
     JobListResponse,
     JobOut,
@@ -34,6 +36,7 @@ from app.schemas import (
 )
 from app.services.job_query import SORT_OPTIONS, JobFilters, paginate, query_jobs, sort_jobs
 from app.services.search_service import run_search
+from app.services.vietnam_scan import SCAN_KEYWORDS
 
 router = APIRouter(prefix="/api")
 
@@ -136,6 +139,40 @@ async def search(payload: SearchRequest, db: Session = Depends(get_db)) -> Searc
     )
 
 
+@router.post("/scan", response_model=ScanResponse)
+async def scan_vietnam(payload: ScanRequest, db: Session = Depends(get_db)) -> ScanResponse:
+    """베트남/외국인 대상 채용공고 전체 스캔.
+
+    하나의 검색어가 아니라, 한국 기업이 베트남인을 채용할 때 쓰는 표현들
+    (언어 · 외국인 채용 · 비자 코드)을 한 번에 훑습니다. 수집한 공고는
+    검색어가 아니라 **공고 본문**을 기준으로 점수를 매겨, 실제로 외국인을
+    받는 공고만 남깁니다.
+    """
+    outcome = await run_search(db, SCAN_KEYWORDS, payload.sources)
+
+    min_score = max(0, payload.min_score)
+    matched = [job for job in outcome.jobs if (job.vn_score or 0) >= min_score]
+    ordered = sort_jobs(matched, "vn_score")
+    page_rows = paginate(ordered, payload.page, payload.limit)
+
+    return ScanResponse(
+        keywords_used=SCAN_KEYWORDS,
+        jobs=[JobOut.model_validate(job) for job in page_rows],
+        pagination=_page_meta(payload.page, payload.limit, len(ordered)),
+        sources=[
+            CollectorStatusOut(
+                source=r.source, label=r.label, ok=r.ok, status=r.status.value,
+                count=r.count, elapsed_ms=r.elapsed_ms, is_mock=r.is_mock, error=r.error,
+            )
+            for r in outcome.results
+        ],
+        elapsed_ms=outcome.elapsed_ms,
+        duplicates_removed=outcome.duplicates_removed,
+        total_collected=len(outcome.jobs),
+        matched=len(ordered),
+    )
+
+
 @router.get("/jobs", response_model=JobListResponse)
 def list_jobs(
     keyword: list[str] | None = Query(default=None, description="repeatable; matches ANY"),
@@ -144,6 +181,7 @@ def list_jobs(
     employment_type: list[str] | None = Query(default=None),
     experience: list[str] | None = Query(default=None),
     sort: str = "latest",
+    min_vn_score: int | None = None,
     page: int = 1,
     limit: int = 20,
     db: Session = Depends(get_db),
@@ -155,6 +193,7 @@ def list_jobs(
         employment_types=employment_type,
         experiences=experience,
         sort=sort if sort in SORT_OPTIONS else "latest",
+        min_vn_score=min_vn_score,
         page=page,
         limit=limit,
     )
